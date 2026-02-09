@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azimont - Explorateur</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧭</text></svg>">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">
+            <span class="icon">🧭</span> <strong>Azimont</strong>
+        </div>
+        <a href="#" class="btn-primary">Ajouter une trace</a>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content">
+            <h1>L'appel du sentier.</h1>
+            <p>Ton carnet de randonnées numérique.</p>
+            
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Chercher une rando (ex: Vosges, Facile...)">
+            </div>
+        </div>
+    </header>
+
+    <div class="container filtres">
+        <button class="filter-btn active" data-filter="all">Tout</button>
+        <button class="filter-btn" data-filter="facile">Promenade 🍏</button>
+        <button class="filter-btn" data-filter="moyen">Rando 🥾</button>
+        <button class="filter-btn" data-filter="difficile">Sportif 🏔️</button>
+    </div>
+
+    <main class="container">
+        <div id="compteur" style="margin-bottom: 20px; color: #666;">Chargement...</div>
+        
+        <div class="grid-randos" id="catalogue-randos">
+            </div>
+    </main>
+
+    <footer>
+        <p>Azimont © 2024 - Prêt pour l'aventure</p>
+    </footer>
+
+    <script src="data.js"></script>
+    
+    <script>
+        // --- LE CERVEAU (Script d'affichage) ---
+        
+        const container = document.getElementById('catalogue-randos');
+        const searchInput = document.getElementById('search-input');
+        const compteur = document.getElementById('compteur');
+
+        // Fonction qui dessine les cartes
+        function afficherRandos(liste) {
+            container.innerHTML = ""; // On vide la grille
+            let nombre = 0;
+
+            for (const [id, rando] of Object.entries(liste)) {
+                nombre++;
+                // Création de la carte HTML
+                const carteHTML = `
+                    <a href="rando.html?id=${id}" class="card-link">
+                        <article class="card">
+                            <div class="card-image">
+                                <img src="${rando.image}" alt="${rando.titre}">
+                                <span class="badge ${rando.difficulte}">${rando.difficulte}</span>
+                            </div>
+                            <div class="card-content">
+                                <h3>${rando.titre}</h3>
+                                <p class="lieu">📍 ${rando.lieu}</p>
+                                <div class="card-stats">
+                                    <span>⏱️ ${rando.duree}</span>
+                                    <span>📏 ${rando.distance}</span>
+                                    <span>📈 ${rando.denivele}</span>
+                                </div>
+                            </div>
+                        </article>
+                    </a>
+                `;
+                container.innerHTML += carteHTML;
+            }
+            
+            // Mise à jour du compteur
+            if(nombre === 0) {
+                container.innerHTML = "<p>Aucune rando trouvée...</p>";
+                compteur.innerText = "";
+            } else {
+                compteur.innerText = `${nombre} itinéraires disponibles`;
+            }
+        }
+
+        // Au chargement, on vérifie si data.js est bien relié
+        if (typeof catalogue !== 'undefined') {
+            afficherRandos(catalogue);
+        } else {
+            compteur.innerText = "⚠️ Erreur : Le fichier data.js est vide ou mal relié.";
+        }
+
+        // Moteur de recherche simple
+        searchInput.addEventListener('input', (e) => {
+            const terme = e.target.value.toLowerCase();
+            const resultats = {};
+
+            // On filtre
+            for (const [id, rando] of Object.entries(catalogue)) {
+                if (rando.titre.toLowerCase().includes(terme) || rando.lieu.toLowerCase().includes(terme)) {
+                    resultats[id] = rando;
+                }
+            }
+            afficherRandos(resultats);
+        });
+    </script>
+</body>
+</html>
