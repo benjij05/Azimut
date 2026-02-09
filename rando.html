@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détail Rando - Azimont</title>
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏔️</text></svg>">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">🧭 <strong>Azimont</strong></div>
+        <a href="index.html" class="btn-primary">← Retour aux randos</a>
+    </nav>
+
+    <main class="container" style="margin-top: 30px;">
+        
+        <div class="header-rando">
+            <div>
+                <h1 id="titre-rando" style="margin:0;">Chargement...</h1>
+                <p id="lieu-rando" style="color:#666; margin:5px 0;">...</p>
+            </div>
+            <div class="card-stats" style="gap: 20px; font-size: 1.2rem; border:none;">
+                <span>⏱️ <b id="duree">--</b></span>
+                <span>📏 <b id="distance">--</b></span>
+                <span>📈 <b id="denivele">--</b></span>
+            </div>
+        </div>
+
+        <div class="cockpit-grid">
+            
+            <div>
+                <div id="map"></div>
+                
+                <div class="sidebar-box" style="margin-top: 20px;">
+                    <h3>📖 Le topo</h3>
+                    <p id="desc-rando" style="line-height: 1.6;">...</p>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                
+                <div class="sidebar-box" style="background: #e3f2fd; border: 1px solid #bbdefb;">
+                    <h3>🌤️ Météo (Sur place)</h3>
+                    <div id="meteo-resultat">
+                        Chargement de la météo...
+                    </div>
+                </div>
+
+                <div class="sidebar-box">
+                    <h3>🎒 Dans le sac</h3>
+                    <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">N'oublie rien !</p>
+                    <ul id="checklist" style="list-style: none; padding: 0;">
+                        </ul>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="data.js"></script>
+    
+    <script>
+        // --- LE CERVEAU DU COCKPIT ---
+
+        // 1. On récupère l'ID de la rando dans l'adresse (ex: rando.html?id=25-bosses)
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        
+        // 2. On cherche les infos dans data.js
+        const info = catalogue[id];
+
+        if (info) {
+            // A. REMPLIR LES TEXTES
+            document.getElementById('titre-rando').innerText = info.titre;
+            document.getElementById('lieu-rando').innerText = "📍 " + info.lieu;
+            document.getElementById('desc-rando').innerText = info.description;
+            document.getElementById('duree').innerText = info.duree;
+            document.getElementById('distance').innerText = info.distance;
+            document.getElementById('denivele').innerText = info.denivele;
+            document.title = info.titre + " - Azimont";
+
+            // B. CHARGER LA CARTE (Leaflet)
+            const map = L.map('map').setView([info.gps.lat, info.gps.lon], 13);
+            
+            // Fond de carte (OpenStreetMap)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Marqueur sur le parking
+            L.marker([info.gps.lat, info.gps.lon]).addTo(map)
+                .bindPopup(`<b>Départ ici !</b><br>${info.lieu}`)
+                .openPopup();
+
+            // C. CHARGER LA MÉTÉO (Open-Meteo API - Gratuit)
+            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${info.gps.lat}&longitude=${info.gps.lon}&daily=weathercode,temperature_2m_max,precipitation_probability_max&timezone=auto`;
+            
+            fetch(urlMeteo)
+                .then(res => res.json())
+                .then(data => {
+                    const temp = data.daily.temperature_2m_max[0]; // Température max jour J
+                    const pluie = data.daily.precipitation_probability_max[0]; // Risque pluie
+                    
+                    document.getElementById('meteo-resultat').innerHTML = `
+                        <div style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">${temp}°C</div>
+                        <div style="color: #555;">Risque de pluie : <strong>${pluie}%</strong></div>
+                        <small style="color: #999; display:block; margin-top:5px;">Prévision jour J</small>
+                    `;
+                })
+                .catch(err => {
+                    document.getElementById('meteo-resultat').innerText = "Météo indisponible.";
+                });
+
+            // D. GÉNÉRER LA CHECKLIST
+            const liste = document.getElementById('checklist');
+            
+            // Tes objets spécifiques
+            info.materiel.forEach(item => {
+                liste.innerHTML += `
+                    <li style="margin-bottom: 8px;">
+                        <label style="cursor: pointer;">
+                            <input type="checkbox"> ${item}
+                        </label>
+                    </li>`;
+            });
+
+            // Objets de base (toujours là)
+            const base = ["Téléphone chargé", "Clés voiture", "Papiers"];
+            base.forEach(item => {
+                liste.innerHTML += `
+                    <li style="margin-bottom: 8px; color: #7f8c8d;">
+                        <label style="cursor: pointer;">
+                            <input type="checkbox" checked> ${item} <small>(Base)</small>
+                        </label>
+                    </li>`;
+            });
+
+        } else {
+            // Si l'ID est faux ou n'existe pas
+            document.querySelector('.container').innerHTML = "<h1>Rando introuvable 😕</h1><a href='index.html'>Retourner à l'accueil</a>";
+        }
+    </script>
+</body>
+</html>
